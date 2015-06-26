@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/whyrusleeping/go-tftp/server"
+	"github.com/zignig/go-tftp/server"
 	"io"
 	"os"
 )
@@ -27,6 +27,6 @@ func main() {
 	port := flag.String("port", "6900", "specify a port to listen on")
 	flag.Parse()
 
-	srv := server.NewServer(*dir, reader, writer)
+	srv := server.NewServer(*dir, reader, writer, nil) // nil logger default
 	panic(srv.Serve(":" + *port))
 }

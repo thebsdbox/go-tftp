@@ -3,13 +3,28 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"net"
 	"time"
 
 	pkt "github.com/whyrusleeping/go-tftp/packet"
 )
+
+// dodgy s.Logger interface
+type logme interface {
+	Debug(format string, args ...interface{})
+	Critical(format string, args ...interface{})
+	Error(format string, args ...interface{})
+	Warning(format string, args ...interface{})
+}
+
+type dummyLog struct{}
+
+func (d *dummyLog) Debug(format string, args ...interface{})    { fmt.Printf("Debug : %s\n", format) }
+func (d *dummyLog) Error(format string, args ...interface{})    { fmt.Printf("Error : %s\n", format) }
+func (d *dummyLog) Warning(format string, args ...interface{})  { fmt.Printf("Warning : %s\n", format) }
+func (d *dummyLog) Critical(format string, args ...interface{}) { fmt.Printf("Critical : %s\n", format) }
 
 // TftpMTftpMaxPacketSize is the practical limit of the size of a UDP
 // packet, which is the size of an Ethernet MTU minus the headers of
@@ -41,33 +56,38 @@ type Server struct {
 	// functions for reading and writing
 	ReadFunc  ReaderFunc
 	WriteFunc WriterFunc
+	Logger    logme
 	// Set true to disable writes
 	ReadOnly bool
 }
 
 // NewServer returns a new tftp Server instance that will
 // serve files from the given directory
-func NewServer(dir string, rf ReaderFunc, wr WriterFunc) *Server {
+func NewServer(dir string, rf ReaderFunc, wr WriterFunc, log logme) *Server {
+	if log == nil {
+		log = &dummyLog{}
+	}
 	return &Server{
 		servdir:   dir,
 		ReadFunc:  rf,
 		WriteFunc: wr,
+		Logger:    log,
 	}
 }
 
 // Handle a new client read or write request.
 func (s *Server) HandleClient(addr *net.UDPAddr, req pkt.Packet) {
-	log.Println("Handle Client!")
+	s.Logger.Debug("Handle Client!")
 
 	reqpkt, ok := req.(*pkt.ReqPacket)
 	if !ok {
-		log.Printf("Invalid packet type for new connection!")
+		s.Logger.Error("Invalid packet type for new connection!")
 		return
 	}
 	// Re-resolve for verification
 	clientaddr, err := net.ResolveUDPAddr("udp", addr.String())
 	if err != nil {
-		log.Printf("Error: %s", err)
+		s.Logger.Error("Error: %s", err)
 		return
 	}
 
@@ -75,17 +95,15 @@ func (s *Server) HandleClient(addr *net.UDPAddr, req pkt.Packet) {
 	case pkt.RRQ:
 		err := s.HandleReadReq(reqpkt, clientaddr)
 		if err != nil {
-			log.Println("read request finished, with error:")
-			log.Println(err)
+			s.Logger.Error("read request finished, with error:", err)
 		}
 	case pkt.WRQ:
 		err := s.HandleWriteReq(reqpkt, clientaddr)
 		if err != nil {
-			log.Println("write request finished, with error:")
-			log.Println(err)
+			s.Logger.Error("write request finished, with error:", err)
 		}
 	default:
-		log.Println("Invalid Packet Type!")
+		s.Logger.Error("Invalid Packet Type!")
 	}
 }
 
@@ -109,12 +127,12 @@ func (s *Server) Serve(addr string) error {
 			return err
 		}
 
-		log.Println("New Connection!")
+		s.Logger.Debug("New Connection!")
 
 		buf = buf[:n]
 		packet, err := pkt.ParsePacket(buf)
 		if err != nil {
-			log.Printf("Got bad packet: %s", err)
+			s.Logger.Debug("Got bad packet: %s", err)
 			continue
 		}
 

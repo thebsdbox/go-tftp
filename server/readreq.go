@@ -2,7 +2,6 @@ package server
 
 import (
 	"io"
-	"log"
 	"net"
 	"time"
 
@@ -12,8 +11,8 @@ import (
 // HandleReadReq handles a new read request with a client, sending them
 // the requested file if it exists.
 func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
-	log.Printf("Read Request: %s", rrq.Filename)
-	log.Printf("Dialing out %s", addr.String())
+	s.Logger.Debug("Read Request: %s", rrq.Filename)
+	s.Logger.Debug("Dialing out %s", addr.String())
 
 	// 'Our' Address
 	listaddr, err := net.ResolveUDPAddr("udp", ":0")
@@ -27,8 +26,6 @@ func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
 		return err
 	}
 
-	// Open whatever file it is that the client desires,
-	// no questions asked (TODO: enforce root locking)
 	fi, err := s.ReadFunc(s.servdir + "/" + rrq.Filename)
 	if err != nil {
 		return err
@@ -53,20 +50,19 @@ func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
 			BlockNum: blknum,
 		}
 
-		err = sendDataPacket(data, con)
+		err = sendDataPacket(s, data, con)
 		if err != nil {
 			return err
 		}
 		blknum++
 	}
-	log.Println("done with transfer")
+	s.Logger.Debug("done with transfer")
 	return nil
 }
 
 // sendDataPacket sends the given data packet to the connected client
 // and waits for the correct ACK, or times out
-func sendDataPacket(d *pkt.DataPacket, con *net.UDPConn) error {
-	//log.Println("Sending data!")
+func sendDataPacket(s *Server, d *pkt.DataPacket, con *net.UDPConn) error {
 	_, err := con.Write(d.Bytes())
 	if err != nil {
 		return err
@@ -100,7 +96,7 @@ func sendDataPacket(d *pkt.DataPacket, con *net.UDPConn) error {
 			}
 
 			if ackpack.GetBlocknum() != d.BlockNum {
-				log.Printf("got ack(%d) but expected ack(%d)\n", d.BlockNum, ackpack.GetBlocknum())
+				s.Logger.Warning("got ack(%d) but expected ack(%d)\n", d.BlockNum, ackpack.GetBlocknum())
 				continue
 			}
 			ackch <- nil
@@ -115,7 +111,7 @@ func sendDataPacket(d *pkt.DataPacket, con *net.UDPConn) error {
 		case <-maxtimeout:
 			return ErrTimeout
 		case <-retransmit:
-			log.Println("Retransmit")
+			s.Logger.Warning("Retransmit")
 			_, err := con.Write(d.Bytes())
 			if err != nil {
 				return err
