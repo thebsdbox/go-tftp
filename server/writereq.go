@@ -4,13 +4,15 @@ import (
 	"errors"
 	"net"
 
+	log "github.com/Sirupsen/logrus"
+
 	pkt "github.com/whyrusleeping/go-tftp/packet"
 )
 
 // HandleWriteRequest makes a UDP connection back to the client
 // and completes a TFTP Write request with them
 func (s *Server) HandleWriteReq(wrq *pkt.ReqPacket, addr *net.UDPAddr) error {
-	s.Logger.Debug("Write Request: %s", wrq.Filename)
+	log.Infof("Write Request: %s", wrq.Filename)
 
 	// 'Our' Address
 	listaddr, err := net.ResolveUDPAddr("udp", ":0")
