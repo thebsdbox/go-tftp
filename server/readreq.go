@@ -5,14 +5,15 @@ import (
 	"net"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	pkt "github.com/whyrusleeping/go-tftp/packet"
 )
 
 // HandleReadReq handles a new read request with a client, sending them
 // the requested file if it exists.
 func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
-	s.Logger.Debug("Read Request: %s", rrq.Filename)
-	s.Logger.Debug("Dialing out %s", addr.String())
+	log.Infof("Read Request: %s", rrq.Filename)
+	log.Infof("Dialing out %s", addr.String())
 
 	// 'Our' Address
 	listaddr, err := net.ResolveUDPAddr("udp", ":0")
@@ -26,7 +27,7 @@ func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
 		return err
 	}
 
-	fi, err := s.ReadFunc(s.servdir + "/" + rrq.Filename)
+	fi, err := s.ReadFunc(rrq.Filename)
 	if err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
 		}
 		blknum++
 	}
-	s.Logger.Debug("done with transfer")
+	log.Infof("done with transfer")
 	return nil
 }
 
@@ -96,7 +97,7 @@ func sendDataPacket(s *Server, d *pkt.DataPacket, con *net.UDPConn) error {
 			}
 
 			if ackpack.GetBlocknum() != d.BlockNum {
-				s.Logger.Warning("got ack(%d) but expected ack(%d)\n", d.BlockNum, ackpack.GetBlocknum())
+				log.Warnf("got ack(%d) but expected ack(%d)\n", d.BlockNum, ackpack.GetBlocknum())
 				continue
 			}
 			ackch <- nil
@@ -111,7 +112,7 @@ func sendDataPacket(s *Server, d *pkt.DataPacket, con *net.UDPConn) error {
 		case <-maxtimeout:
 			return ErrTimeout
 		case <-retransmit:
-			s.Logger.Warning("Retransmit")
+			log.Warnf("Retransmit")
 			_, err := con.Write(d.Bytes())
 			if err != nil {
 				return err
