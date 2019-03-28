@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	pkt "github.com/whyrusleeping/go-tftp/packet"
 )
 
@@ -108,7 +108,7 @@ func (s *Server) Serve(addr string) error {
 			return err
 		}
 
-		log.Infof("New Connection!")
+		log.Infof("TFTP Connection established")
 
 		buf = buf[:n]
 		packet, err := pkt.ParsePacket(buf)

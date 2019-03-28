@@ -5,15 +5,15 @@ import (
 	"net"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	pkt "github.com/whyrusleeping/go-tftp/packet"
 )
 
 // HandleReadReq handles a new read request with a client, sending them
 // the requested file if it exists.
 func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
-	log.Infof("Read Request: %s", rrq.Filename)
-	log.Infof("Dialing out %s", addr.String())
+	log.Debugf("Read Request: %s", rrq.Filename)
+	log.Debugf("Dialing out %s", addr.String())
 
 	// 'Our' Address
 	listaddr, err := net.ResolveUDPAddr("udp", ":0")
@@ -57,7 +57,7 @@ func (s *Server) HandleReadReq(rrq *pkt.ReqPacket, addr *net.UDPAddr) error {
 		}
 		blknum++
 	}
-	log.Infof("done with transfer")
+	log.Infof("TFTP transfer complete")
 	return nil
 }
 
@@ -112,7 +112,7 @@ func sendDataPacket(s *Server, d *pkt.DataPacket, con *net.UDPConn) error {
 		case <-maxtimeout:
 			return ErrTimeout
 		case <-retransmit:
-			log.Warnf("Retransmit")
+			log.Warnf("Having to retransmit packet")
 			_, err := con.Write(d.Bytes())
 			if err != nil {
 				return err
