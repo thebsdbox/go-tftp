@@ -58,7 +58,7 @@ func NewServer(dir string, rf ReaderFunc, wr WriterFunc) *Server {
 
 // Handle a new client read or write request.
 func (s *Server) HandleClient(addr *net.UDPAddr, req pkt.Packet) {
-	log.Infof("Handle Client!")
+	log.Debugf("Client [%s] is being handled", addr.IP.String())
 
 	reqpkt, ok := req.(*pkt.ReqPacket)
 	if !ok {
